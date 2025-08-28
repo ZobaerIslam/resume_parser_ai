@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+kmeans_model.joblib
+vectorizer.joblib
+data/
+.DS_Store
+*.env
