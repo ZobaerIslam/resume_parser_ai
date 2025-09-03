@@ -1,15 +1,8 @@
-
 import streamlit as st
 import pandas as pd
 import PyPDF2
 import docx2txt
-import joblib
-from engine import preprocess_text
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Load the trained model and vectorizer
-vectorizer = joblib.load('vectorizer.joblib')
-kmeans_model = joblib.load('kmeans_model.joblib')
+from engine import get_semantic_similarity
 
 def read_resume_file(file):
     """
@@ -28,13 +21,17 @@ def read_resume_file(file):
     else:
         return None
 
-st.title("AI Resume Parser")
+st.set_page_config(layout="wide")
 
-# File uploader
-uploaded_files = st.file_uploader("Upload your resumes", type=["pdf", "docx", "txt"], accept_multiple_files=True)
+st.markdown("<h1 style='text-align: center;'>AI Resume Parser</h1>", unsafe_allow_html=True)
 
-# Text area for job description
-job_description = st.text_area("Enter the job description")
+col1, col2 = st.columns(2)
+
+with col1:
+    uploaded_files = st.file_uploader("Upload your resumes", type=["pdf", "docx", "txt"], accept_multiple_files=True)
+
+with col2:
+    job_description = st.text_area("Enter the job description")
 
 # Button to trigger scoring
 if st.button("Get Score"):
@@ -43,26 +40,19 @@ if st.button("Get Score"):
         for uploaded_file in uploaded_files:
             resume_text = read_resume_file(uploaded_file)
             if resume_text is not None:
-                # Preprocess the job description and resume text
-                preprocessed_job_description = preprocess_text(job_description)
-                preprocessed_resume = preprocess_text(resume_text)
-
-                # Transform the text into TF-IDF vectors
-                job_description_vector = vectorizer.transform([' '.join(preprocessed_job_description)])
-                resume_vector = vectorizer.transform([' '.join(preprocessed_resume)])
-
-                # Calculate the cosine similarity
-                similarity_score = cosine_similarity(job_description_vector, resume_vector)[0][0]
-
-                # Convert the score to a scale of 0-10
-                final_score = round(similarity_score * 10, 2)
+                
+                final_score = get_semantic_similarity(resume_text, job_description)
 
                 results.append({"File Name": uploaded_file.name, "Score": final_score})
+
             else:
                 st.error(f"Unsupported file type: {uploaded_file.name}")
         
         if results:
-            st.dataframe(pd.DataFrame(results))
+            df = pd.DataFrame(results)
+            df = df.sort_values(by="Score", ascending=False)
+            st.dataframe(df)
+            st.info("The matching score is calculated based on the semantic similarity between your resume and the job description. It measures how well the meaning of the text in your resume aligns with the meaning of the text in the job description.")
 
     else:
         st.error("Please upload at least one resume and enter a job description.")
